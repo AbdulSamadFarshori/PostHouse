@@ -1,10 +1,9 @@
 import os
-print("cwd:", os.getcwd())
-
 from typing import List, Annotated, Literal, Sequence
 from ddg import Duckduckgo
 from pydantic import BaseModel, Field
 from tavily import TavilyClient
+from PostHouse.src.scehma.search import *
 
 
 class SearchEngine(BaseModel):

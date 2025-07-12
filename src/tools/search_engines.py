@@ -1,16 +1,26 @@
 import os
+import requests
+from bs4 import BeautifulSoup
+import time
 from typing import List, Annotated, Literal, Sequence, Dict
-from ddg import Duckduckgo
-from pydantic import BaseModel, Field
+from duckduckgo_search import DDGS
 from tavily import TavilyClient
+from googlesearch import search
+from src.scehma.search import SearchEngine, SearchEngineResult
 
+class GoogleSearchEngine:
 
-class SearchEngine(BaseModel):
-    query: str = Field(description="search query for get similar results from search engine")
-
-
-class SearchEngineResult(BaseModel):
-    result: List[str] = Field(description="list contains all valid urls")
+    def __init__(self, query: str, sleep_interval: int = 2, num_results: int = 2):
+        self.query = query
+        self.sleep_interval = sleep_interval
+        self.num_results = num_results
+        self._content: List[str] = []
+    
+    def invoke(self):
+        gen_results = search(self.query, sleep_interval=self.sleep_interval, num_results=self.num_results)
+        results = [res for res in gen_results]
+        self._content = results[:1] if results else []
+        return self._content
 
 
 class DuckDuckGoEngine:
@@ -23,14 +33,15 @@ class DuckDuckGoEngine:
         Initializes the search engine with a query.
         """
         self.query: str = query
-        self.ddg = Duckduckgo()
+        self.ddg = DDGS()
         self._results: List[SearchEngineResult] = []
 
     def get_results(self) -> List[SearchEngineResult]:
         """
         Fetches search results from DuckDuckGo.
         """
-        self._results = self.ddg.search(self.query).get('data', [])
+        time.sleep(2)
+        self._results = self.ddg.text(self.query, timelimit='7d', max_results=2).get('data', [])
         return self._results
 
     def get_urls(self) -> List[str]:
@@ -58,7 +69,7 @@ class DuckDuckGoEngine:
             urls = self.get_urls()
             if validate:
                 urls = [url for url in urls if self.validate_url(url)]
-            return urls
+            return urls[:-1]
         except Exception as e:
             print(f"[Failed] : {e}")
 
@@ -75,7 +86,7 @@ class TavilyWebSearchEngine(TivalyEngine):
     Search engine interface using Tivaly API.
     """
     def __init__(self, 
-                 query: SearchEngine,
+                 query: dict,
                  search_depth: Literal['basic', 'advanced'] = "basic",     
                  topic: Literal['general', 'news', 'finance'] = "general", 
                  days: int = 7,
@@ -91,7 +102,7 @@ class TavilyWebSearchEngine(TivalyEngine):
         Initializes the web search engine with a query and params.
         """
         super().__init__()
-        self.query = query
+        self.query = query.get("query")
         self._results: List[SearchEngineResult] = []
         self.search_depth = search_depth
         self.topic = topic
@@ -110,12 +121,7 @@ class TavilyWebSearchEngine(TivalyEngine):
         Fetches search results from tavily.
         """
         try:
-            self._results = self.tavily_client.search(self.query, search_depth=self.search_depth,
-                                                topic=self.topic, days=self.days,
-                                                max_result=self.max_results, include_domains=self.include_domains, 
-                                                exclude_domains=self.exclude_domains, include_answer=self.include_answer,
-                                                include_raw_content=self.include_raw_content, include_images=self.include_images, 
-                                                timeout=self.timeout).get('results', [])
+            self._results = self.tavily_client.search(self.query).get('results', [])
             return self._results
         except Exception as e:
             print(f"[Failed] Scraped: {e}")
@@ -126,7 +132,7 @@ class TavilyWebSearchEngine(TivalyEngine):
         """
         try:
             self.get_results()
-            self._content = [page.get("content", "") for page in self._results]
+            self._content = "---------------\n\n-----------------".join([page.get("content", "") for page in self._results])
             return self._content
         except Exception as e:
             print(f"[Failed] Scraped: {e}")
@@ -171,7 +177,7 @@ class TivalyExtractEngine(TivalyEngine):
         
         """
         Invoke the extraction process and extract raw content from the results.
-
+        
         Returns:
             List[SearchEngineResult]: The full list of results including raw content.
         """
@@ -198,7 +204,7 @@ class TivalyCrawlerEngine(TivalyEngine):
                 exclude_domains: str = None,
                 allow_external: bool = False,
                 format = "markdown",
-                extract_depth = "basic",
+                extract_depth = "advance",
                 instruction: str = None):
         
         """

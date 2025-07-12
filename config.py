@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-env_path = './.env'
+env_path = './ENV/.env'
 load_dotenv(dotenv_path=env_path)
 
 

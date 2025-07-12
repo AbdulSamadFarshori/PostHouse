@@ -7,6 +7,7 @@ from duckduckgo_search import DDGS
 from tavily import TavilyClient
 from googlesearch import search
 from src.scehma.search import SearchEngine, SearchEngineResult
+from config import SAERCH_API_KEY
 
 class GoogleSearchEngine:
 
@@ -77,7 +78,7 @@ class DuckDuckGoEngine:
 class TivalyEngine:
 
     def __init__(self):
-        self.tavily_client = TavilyClient(api_key="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")
+        self.tavily_client = TavilyClient(api_key=SAERCH_API_KEY)
 
     
 class TavilyWebSearchEngine(TivalyEngine):

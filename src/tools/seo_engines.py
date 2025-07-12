@@ -1,5 +1,6 @@
 import requests
 import time
+from config import MOZ_API_KEY
 
 class SEOAnalysisEngine:
     """
@@ -18,7 +19,7 @@ class SEOAnalysisEngine:
         self.backlinks_endpoint_url = "https://lsapi.seomoz.com/v2/links"
         self.domain_authority_endpoint = "https://lsapi.seomoz.com/v2/url_metrics"
         self.top_page_endpoint = "https://lsapi.seomoz.com/v2/top_pages"
-        self.api_token = "bW96c2NhcGUtdVRJTW82ajNjbDpUMldsYlFTdjMydUNlamFQNEhiMUFKaUc0c1F4TGpkag=="
+        self.api_token = MOZ_API_KEY
         self.headers = {
             "x-moz-token": self.api_token,
             "Content-Type": "application/json",

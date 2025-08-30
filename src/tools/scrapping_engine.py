@@ -18,7 +18,7 @@ class ScrapingEngine:
         driver_path: str = "./drive/chromedriver.exe",
         urls: Optional[List[str]] = None,
         tag: str = "p",
-        max_retries: int = 3,
+        max_retries: int = 1,
         scroll_count: int = 3,
     ):
         """
@@ -30,9 +30,9 @@ class ScrapingEngine:
         :param max_retries: Number of retries on failure.
         :param scroll_count: Number of scrolls for dynamic content.
         """
-        options = Options()
-        options.headless = headless
-        self.driver = webdriver.Chrome(service=Service(driver_path), options=options)
+        self.options = Options()
+        self.headless = headless
+        
         self.urls = urls or []
         self.tag: str = tag
         self.max_retries = max_retries
@@ -40,6 +40,17 @@ class ScrapingEngine:
         self.page_soups: Dict[str, BeautifulSoup] = {}
         self.cleaned_texts: Dict[str, BeautifulSoup] = {}
         self._all_paragraph_text: List[str] = []
+        
+        self.options.add_argument("--no-sandbox")
+        self.options.add_argument("--disable-dev-shm-usage")
+        self.options.add_argument("--disable-gpu")    # mostly for Windows
+        self.options.add_argument("--window-size=1920,1080")
+
+        if self.headless:
+            self.options.add_argument("--headless=new")   # use "--headless" if your Chrome is older
+
+        self.driver = webdriver.Chrome(service=Service(driver_path), options=self.options)
+
 
     def engine(self, url: str):
         retry = 0
@@ -64,91 +75,19 @@ class ScrapingEngine:
                 print(f"[RETRY {retry}/{self.max_retries}] Error scraping {url}: {e}. Retrying in {wait_time}s...")
                 time.sleep(wait_time)
         self.driver.quit()
-
     
-    def fetch_and_parse(self):
-        """
-        Fetch HTML content from URLs and parse it using BeautifulSoup.
-        Stores the parsed soup object in self.page_soups.
-        """
-        for url in self.urls:
-            HTML_object = self.engine(url)
-            self.page_soups[url] = HTML_object
-            
-
-    def fliter_soup(self):
-        for soup in self.page_soups.values():
-            for tag in soup(["script", "style", "noscript"]):
-                tag.decompose()
-            for tag in soup.find_all(["nav", "footer", "header", "aside"]):
-                tag.decompose()
-            keywords = ["navbar", "nav", "footer", "header", "menu", "sidebar"]
-            for keyword in keywords:
-                for tag in soup.find_all(attrs={"class": lambda x: x and keyword in x.lower()}):
-                    tag.decompose()
-                for tag in soup.find_all(attrs={"id": lambda x: x and keyword in x.lower()}):
-                    tag.decompose()
-            
-            clean_text = soup.get_text(separator="\n", strip=True)
-
-    def get_all_p_text(self):
-        self.fetch_and_parse()
-        for soup in self.page_soups.values(): 
-            paragraphs = [p.get_text(strip=True) for p in soup.find_all("p")]
-            self._all_paragraph_text.append("\n\n".join(paragraphs))
-        return self._all_paragraph_text        
-
-    def invoke(self):
-        if self.tag == "p":
-            paragraphs = self.get_all_p_text()
-            content = "\n\n".join(paragraphs)
-            return content
-        
-
-class CompetitorWebsiteScraper(ScrapingEngine):
-
+class ScrapClientWebsite(ScrapingEngine):
     def __init__(self, url: str):
         super().__init__()
         self.url = url
         self.HTML = None
-
+    
     def fetch_soup_object(self):
         self.HTML = self.engine(self.url)
+    
+    def invoke(self):
+        self.fetch_soup_object()
         return self.HTML
-    
-    def get_title(self):
-        # self.fetch_soup_object()
-        title = self.HTML.title.text if self.HTML.title else "No title found"
-        return title
-
-    def get_all_links(self):
-        # self.fetch_soup_object()
-        body = self.HTML.find('body')
-        links = [a['href'] for a in body.find_all('a', href=True)] if body else []
-        return links
-
-    def get_all_keywords(self):
-        keywords_tag = self.HTML.find('meta', attrs={'name': 'keywords'})
-        keywords = keywords_tag['content'] if keywords_tag else "No keywords found"
-        return keywords
-    
-    def get_description(self):
-        description = self.HTML.find('meta', attrs={'name': 'description'})
-        if description:
-            description_content = description.get('content')
-            return description_content 
-        else:
-            description_content = 'No description found'
-            return description_content
-
-    def get_robots(self):
-        robots = self.HTML.find('meta', attrs={'name': 'robots'})
-        if robots:
-            robots_content =  robots.get('content')
-            return robots_content
-        else:
-            robots_content =  "No robots found"
-            return robots_content
 
 
 if __name__ == "__main__":
@@ -164,14 +103,13 @@ if __name__ == "__main__":
     #  'https://getonbloc.com/nearby/the-best-afghan-restaurants-in-london/'
     #  ]
 
-    urls = ["https://www.linkedin.com/feed/"]
+    # urls = ["https://www.linkedin.com/feed/"]
     
-    scraper = ScrapingEngine(headless=True, urls=urls)
-    scraper.fetch_and_parse()
-    x = scraper.page_soups
-    y = scraper.cleaned_texts
-    print(f"{'@'*100}")
-    print(y)
-
+    x = ScrapClientWebsite(url="https://www.sunsave.energy/solar-panels-advice/installation/best-installers")
+    doc = x.invoke()
+    with open('doc2.txt', 'w', encoding="utf-8") as f:
+        f.write(doc)
+    
+    
     
 

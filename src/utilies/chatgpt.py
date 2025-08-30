@@ -3,6 +3,8 @@ from config import OPENAI_API_KEY
 
 class ChatGpt:
 
+    name = "chatgpt"
+
     def __init__(self):
         self.api_key = OPENAI_API_KEY
 

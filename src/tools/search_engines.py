@@ -11,16 +11,17 @@ from config import SAERCH_API_KEY
 
 class GoogleSearchEngine:
 
-    def __init__(self, query: str, sleep_interval: int = 2, num_results: int = 2):
+    def __init__(self, query: str, sleep_interval: int = 2, num_results: int = 15, advanced: bool = True):
         self.query = query
         self.sleep_interval = sleep_interval
         self.num_results = num_results
         self._content: List[str] = []
+        self.advanced = advanced
     
     def invoke(self):
-        gen_results = search(self.query, sleep_interval=self.sleep_interval, num_results=self.num_results)
+        gen_results = search(self.query, sleep_interval=self.sleep_interval, num_results=self.num_results, advanced=self.advanced)
         results = [res for res in gen_results]
-        self._content = results[:1] if results else []
+        self._content = [f"url - {result.url}, title - {result.title}, description - {result.description}" for result in results]
         return self._content
 
 
@@ -276,13 +277,13 @@ class TivalyCrawlerEngine(TivalyEngine):
 
 if __name__ == "__main__":
     
-    queries = ["top solar and green energy companies in uk", "top afghan resturants in uk"]
+    queries = ["top solar and green energy companies in uk"]
 
 
     def test():
         for query in queries:
-            engine = SearchEngine(query=query)
-            urls = engine.run()
+            engine = GoogleSearchEngine(query=query)
+            urls = engine.invoke()
             print(urls)
             print(f"{'*'*50}")
     test()

@@ -1,6 +1,8 @@
 {
+  
+  "dockerfile_lines": [],
   "dependencies": ["./requirements.txt"],
-  "env": "./.env",
+  "env": "./ENV/.env",
   "graphs": {
     "agent": "./main.py:graph"
   }

@@ -1,3 +1,4 @@
+import json
 import requests
 import time
 from config import MOZ_API_KEY
@@ -24,6 +25,18 @@ class SEOAnalysisEngine:
             "x-moz-token": self.api_token,
             "Content-Type": "application/json",
         }
+
+        self.data_template = {"jsonrpc":"2.0",
+                              "id":"450d067d-b688-4140-81a0-de8836501209",
+                              "method":"data.site.metrics.brand.authority.fetch",
+                              "params":{
+                                  "data":
+                                  {"site_query":
+                                        {"query":self.target,
+                                         "scope":"domain"
+                                         }
+                                }}
+                            }
         self._pages = []
 
     def _fetch_backlink_data(self, retries: int = 3, delay: int = 2) -> dict:
@@ -90,15 +103,28 @@ class SEOAnalysisEngine:
         return response.json()
     
     def get_url_metrics(self):
-        temp = []
+        DA = None
         data = self._get_url_metrics()
         results = data.get('results', [])
         if results:
-            for dicts in results:
-                for k, v in dicts.items():
-                    temp.append(f"{k} : {v}")
-        metric = "\n".join(temp)
-        return metric
+            dicts = results[0]
+            if dicts.get('domain_authority', None):
+                DA = dicts.get('domain_authority')            
+        return DA
+    
+    def _get_ba_metrics(self):
+        response = requests.post("https://api.moz.com/jsonrpc", headers=self.headers, data=json.dumps(self.data_template))
+        print(response.json())
+        return response.json()
+    
+    def get_ba_metrics(self):
+        BA = None
+        data = self._get_ba_metrics()
+        results = data.get("result", {})
+        sm = results.get("site_metrics", {})
+        if sm.get('brand_authority_score', None):
+            BA = sm.get('brand_authority_score', None)
+        return BA
 
     def _get_top_page(self):
         payload = {
@@ -121,3 +147,39 @@ class SEOAnalysisEngine:
         for page in results:
             top_url.append(page['page'])
         return top_url
+    
+
+class KeywordMetrice:
+
+    def __init__(self):
+        self.api_token = MOZ_API_KEY 
+        self.headers = {
+            "x-moz-token": self.api_token,
+            "Content-Type": "application/json",
+        }
+        
+    def _metrice(self, data):
+        response = requests.post("https://api.moz.com/jsonrpc", headers=self.headers, data=json.dumps(data))
+        print(response.json())
+        return response.json()
+    
+    def metrice(self, keyword):
+        data = {
+                    "jsonrpc": "2.0",
+                    "id": "b33f5210-7e43-4d47-8f6b-8e7749f79691",
+                    "method": "data.keyword.metrics.fetch",
+                    "params": {
+                        "data": {
+                            "serp_query": {
+                                "keyword": keyword,
+                                "locale": "en-US",
+                                "device": "desktop",
+                                "engine": "google"
+                            }
+                        }
+                    }
+                }
+        response = self._metrice(data)
+        return response
+    
+

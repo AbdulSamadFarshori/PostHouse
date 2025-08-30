@@ -8,19 +8,7 @@
   "image_distro": "debian",
 
   "dockerfile_lines": [ 
-    
-  "SHELL [\"/bin/bash\", \"-lc\"]",
-
-    "RUN apt-get update && apt-get install -y --no-install-recommends wget curl unzip jq ca-certificates && rm -rf /var/lib/apt/lists/*",
-
-    "RUN wget -O /tmp/google-chrome-stable_current_amd64.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && apt-get install -y /tmp/google-chrome-stable_current_amd64.deb && rm -f /tmp/google-chrome-stable_current_amd64.deb",
-
-    "RUN set -eux; CHROME_VERSION=\"$(google-chrome --version)\"; echo \"$CHROME_VERSION\" > /etc/chrome-version.txt; CHROME_MAJOR=\"$(echo \"$CHROME_VERSION\" | sed -E 's/.* ([0-9]+)\\..*/\\1/')\"; echo \"$CHROME_MAJOR\" > /etc/chrome-major.txt",
-
-    "RUN set -eux; CHROME_MAJOR=\"$(cat /etc/chrome-major.txt)\"; DRIVER_VERSION=\"$(curl -fsSL \"https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR}\" || true)\"; if [ -z \"$DRIVER_VERSION\" ]; then echo \"Falling back to Chrome for Testing for major ${CHROME_MAJOR}\"; CFT_JSON=\"$(curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json)\"; DRIVER_VERSION=\"$(echo \"$CFT_JSON\" | jq -r --arg m \"$CHROME_MAJOR\" '.versions[] | select(.version | startswith($m+\".\")) | .version' | sort -V | tail -n1)\"; CFT_URL=\"$(echo \"$CFT_JSON\" | jq -r --arg v \"$DRIVER_VERSION\" '.versions[] | select(.version==$v) | .downloads.chromedriver[] | select(.platform==\"linux64\") | .url')\"; curl -fsSL -o /tmp/chromedriver.zip \"$CFT_URL\"; else curl -fsSL -o /tmp/chromedriver.zip \"https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip\"; fi; unzip -q /tmp/chromedriver.zip -d /tmp/chromedriver_unpack; CHROMEDRIVER_SRC=\"/tmp/chromedriver_unpack/chromedriver\"; if [ ! -f \"$CHROMEDRIVER_SRC\" ]; then CHROMEDRIVER_SRC=\"/tmp/chromedriver_unpack/chromedriver-linux64/chromedriver\"; fi; if [ ! -f \"$CHROMEDRIVER_SRC\" ]; then CHROMEDRIVER_SRC=\"$(find /tmp/chromedriver_unpack -type f -name chromedriver -print -quit)\"; fi; install -m 0755 \"$CHROMEDRIVER_SRC\" /usr/local/bin/chromedriver; mkdir -p /workspace/posthouse; cp /usr/local/bin/chromedriver /workspace/posthouse/; rm -rf /tmp/chromedriver_unpack /tmp/chromedriver.zip; chmod +x /usr/local/bin/chromedriver; google-chrome --version; chromedriver --version",
-
-    "ENV CHROME_BIN=/usr/bin/google-chrome CHROMEDRIVER_PATH=/usr/local/bin/chromedriver"
-  
+    "RUN python -m playwright install --with-deps"
   ]
 
 }

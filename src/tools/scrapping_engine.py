@@ -1,21 +1,18 @@
 import time
 from typing import List, Optional, Dict
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
+from playwright.sync_api import sync_playwright
 
 
 class ScrapingEngine:
     """
-    A web scraping engine using Selenium to fetch HTML and BeautifulSoup for parsing.
+    A web scraping engine using Playwright to fetch HTML and BeautifulSoup for parsing.
     """
 
     def __init__(
         self,
         headless: bool = True,
-        driver_path: str = "./drive/chromedriver.exe",
+        driver_path: str = "./drive/chromedriver.exe",  # kept for compatibility; not used
         urls: Optional[List[str]] = None,
         tag: str = "p",
         max_retries: int = 1,
@@ -24,15 +21,13 @@ class ScrapingEngine:
         """
         Initialize the scraping engine.
 
-        :param headless: Run Chrome in headless mode.
-        :param driver_path: Path to ChromeDriver.
+        :param headless: Run browser in headless mode.
+        :param driver_path: Unused in Playwright; kept to match the Selenium signature.
         :param urls: List of URLs to scrape.
         :param max_retries: Number of retries on failure.
         :param scroll_count: Number of scrolls for dynamic content.
         """
-        self.options = Options()
         self.headless = headless
-        
         self.urls = urls or []
         self.tag: str = tag
         self.max_retries = max_retries
@@ -40,76 +35,76 @@ class ScrapingEngine:
         self.page_soups: Dict[str, BeautifulSoup] = {}
         self.cleaned_texts: Dict[str, BeautifulSoup] = {}
         self._all_paragraph_text: List[str] = []
-        
-        self.options.add_argument("--no-sandbox")
-        self.options.add_argument("--disable-dev-shm-usage")
-        self.options.add_argument("--disable-gpu")    # mostly for Windows
-        self.options.add_argument("--window-size=1920,1080")
 
+        # Keep the same variable name; use it as Chromium launch args.
+        self.options: List[str] = []
+        self.options.append("--no-sandbox")
+        self.options.append("--disable-dev-shm-usage")
+        self.options.append("--disable-gpu")
+        self.options.append("--window-size=1920,1080")
         if self.headless:
-            self.options.add_argument("--headless=new")   # use "--headless" if your Chrome is older
+            # Works with modern Chromium; Playwright also honors headless=True.
+            self.options.append("--headless=new")
 
-        self.driver = webdriver.Chrome(service=Service(driver_path), options=self.options)
-
+        # Preserve the attribute name for compatibility; Playwright doesn't use WebDriver.
+        self.driver = None
 
     def engine(self, url: str):
         retry = 0
         success = False
+        last_exception = None
+
         while retry < self.max_retries and not success:
             try:
-                self.driver.get(url)
-                time.sleep(3)
+                with sync_playwright() as pw:
+                    browser = pw.chromium.launch(headless=self.headless, args=self.options)
+                    context = browser.new_context(viewport={"width": 1920, "height": 1080})
+                    page = context.new_page()
 
-                for _ in range(self.scroll_count):
-                    self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    page.goto(url, wait_until="domcontentloaded")
+                    # Let network settle; avoids arbitrary sleeps
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=5000)
+                    except Exception:
+                        # Some sites never reach networkidle; it's okay to continue
+                        pass
 
-                html = self.driver.page_source
-                soup = BeautifulSoup(html, "html.parser")
-                print(f"[SUCCESS] Scraped: {url}")
-                success = True
-                self.driver.quit()
-                return soup
+                    for _ in range(self.scroll_count):
+                        page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
+                        page.wait_for_timeout(500)  # ~0.5s between scrolls
+
+                    html = page.content()
+                    soup = BeautifulSoup(html, "html.parser")
+                    print(f"[SUCCESS] Scraped: {url}")
+                    success = True
+
+                    # Clean close
+                    context.close()
+                    browser.close()
+
+                    return soup
+
             except Exception as e:
+                last_exception = e
                 retry += 1
                 wait_time = 2 ** retry
                 print(f"[RETRY {retry}/{self.max_retries}] Error scraping {url}: {e}. Retrying in {wait_time}s...")
                 time.sleep(wait_time)
-        self.driver.quit()
-    
+
+        if not success:
+            print(f"[FAILED] Could not scrape: {url}. Last error: {last_exception}")
+        return None
+
+
 class ScrapClientWebsite(ScrapingEngine):
     def __init__(self, url: str):
         super().__init__()
         self.url = url
         self.HTML = None
-    
+
     def fetch_soup_object(self):
         self.HTML = self.engine(self.url)
-    
+
     def invoke(self):
         self.fetch_soup_object()
         return self.HTML
-
-
-if __name__ == "__main__":
-    # urls = ['https://www.yelp.com/search?cflt=afghani&find_loc=London', 
-    #  'https://restaurantguru.com/afghan-London-c1', 
-    #  'https://www.thefork.com/restaurants/london-c665790/afghan-t2292', 
-    #  'https://autoreserve.com/en/gb/afghan', 
-    #  'https://www.balkhkenton.com/', 
-    #  'https://halalgems.com/10-afghan-owned-restaurants-around-london/', 
-    #  'https://dineawardslondon.com/afghan', 
-    #  'https://blog.resy.com/2021/11/london-afghan-restaurants-guide/', 
-    #  'https://www.halaljoints.com/browse/afghan-in-london-united-kingdom', 
-    #  'https://getonbloc.com/nearby/the-best-afghan-restaurants-in-london/'
-    #  ]
-
-    # urls = ["https://www.linkedin.com/feed/"]
-    
-    x = ScrapClientWebsite(url="https://www.sunsave.energy/solar-panels-advice/installation/best-installers")
-    doc = x.invoke()
-    with open('doc2.txt', 'w', encoding="utf-8") as f:
-        f.write(doc)
-    
-    
-    
-

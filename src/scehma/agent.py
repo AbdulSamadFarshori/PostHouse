@@ -7,6 +7,7 @@ from operator import add
 class SEOCompetitiveAnalystSchema(TypedDict):
     
     client_url: str
+    pages: List
     track: Union[List, str]
     location: str
     industry: str

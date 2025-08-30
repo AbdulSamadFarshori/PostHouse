@@ -42,7 +42,7 @@ class CollectClientWebsiteData:
         self.backlinks = []
         self.DA = None
 
-        self.scraping_pages = page
+        self.scraping_pages = pages
 
     def init_scrape(self):
         web = ScrapClientWebsite(self.url)

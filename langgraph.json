@@ -8,7 +8,8 @@
   "image_distro": "debian",
 
   "dockerfile_lines": [ 
-    "RUN python -m playwright install --with-deps"
+        "RUN python -m pip install --no-cache-dir playwright==1.55.0",
+        "RUN python -m playwright install --with-deps"
   ]
 
 }

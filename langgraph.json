@@ -2,6 +2,7 @@
   
   "dockerfile_lines": [],
   "dependencies": ["./"],
+  "python_version": "3.13",
   "graphs": {
     "agent": "./main.py:graph"
   }

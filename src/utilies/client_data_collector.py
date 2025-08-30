@@ -79,20 +79,20 @@ class CollectClientWebsiteData:
                 full_url = f"{root}{link}"
                 self.links[idx] = full_url
 
-    def qwen_llm_response(self, prompt):
-        llm = ModelFactory.create('qwen')
-        core = llm.model()
-        res = core.invoke(prompt)
-        content = res
-        json_output = json.loads(content)
-        return json_output
+    # def qwen_llm_response(self, prompt):
+    #     llm = ModelFactory.create('qwen')
+    #     core = llm.model()
+    #     res = core.invoke(prompt)
+    #     content = res
+    #     json_output = json.loads(content)
+    #     return json_output
 
     def filter_urls(self):
         prompt = url_filter_prompt()
         system_prompt = prompt.format(urls=self.links)
         final_prompt = [SystemMessage(content=system_prompt)] + [HumanMessage(content="please find the useful urls")]
         structured_llm = self.llm.with_structured_output(UrlFilterSchema)
-        res = structured_llm(final_prompt)
+        res = structured_llm.invoke(final_prompt)
         self.links = res.get('urls', self.links)
         print(f"[Links]: - {self.links}")
 

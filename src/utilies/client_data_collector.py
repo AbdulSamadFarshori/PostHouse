@@ -10,6 +10,7 @@ from src.utilies.prompts import url_filter_prompt
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from src.utilies.factory import ModelFactory
+from src.scehma.agent import UrlFilterSchema
 nltk.download('stopwords')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
@@ -17,6 +18,8 @@ nltk.download('omw-1.4')
 class CollectClientWebsiteData:
 
     def __init__(self, url: str, pages):
+        core = ModelFactory.create('chatgpt')
+        self.llm = core.model()
         self.url = url
         self.page = pages
         self.title_count = 60
@@ -86,10 +89,10 @@ class CollectClientWebsiteData:
 
     def filter_urls(self):
         prompt = url_filter_prompt()
-        example = "{urls:[.,.,.]}"
-        system_prompt = prompt.format(urls=self.links, example=example)
+        system_prompt = prompt.format(urls=self.links)
         final_prompt = [SystemMessage(content=system_prompt)] + [HumanMessage(content="please find the useful urls")]
-        res = self.qwen_llm_response(final_prompt)
+        structured_llm = self.llm.with_structured_output(UrlFilterSchema)
+        res = structured_llm(final_prompt)
         self.links = res.get('urls', self.links)
         print(f"[Links]: - {self.links}")
 

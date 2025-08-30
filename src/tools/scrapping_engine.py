@@ -12,7 +12,6 @@ class ScrapingEngine:
     def __init__(
         self,
         headless: bool = True,
-        driver_path: str = "./drive/chromedriver.exe",  # kept for compatibility; not used
         urls: Optional[List[str]] = None,
         tag: str = "p",
         max_retries: int = 1,

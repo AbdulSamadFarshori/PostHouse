@@ -40,3 +40,7 @@ class OnPageSeoAuditReport(TypedDict):
 
 class ReportSchema(TypedDict):
     report : str
+
+
+class UrlFilterSchema(TypedDict):
+    urls: List[str]

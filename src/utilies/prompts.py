@@ -158,12 +158,9 @@ def classify_search_root_domain():
 
 def url_filter_prompt():
     prompts = """you are a website analyst for SEO, your task to find out the urls where can get website information and keywords.
-            you don't have to consider useful urls like login url or registration url.
+            you don't have to consider useful urls like login url or registration url, etc.
             here is the list of urls:
             URLS : {urls} 
-            Instructions:
-                1. you need to return result in json form.
-                2. give only urls as a key, example of json: {example}
             """
     return prompts 
 

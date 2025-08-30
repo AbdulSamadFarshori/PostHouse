@@ -1,9 +1,8 @@
 {
-  
-  "dependencies": ["./", "./src"],
+  "dependencies": ["."],
   "python_version": "3.13",
-  "graphs": {
-    "agent": "./main.py:graph"
-  }
-
+  "graphs": { "agent": "./main.py:graph" },
+  "env": "./ENV/.env",
+  "pip_installer": "pip",
+  "keep_pkg_tools": true
 }

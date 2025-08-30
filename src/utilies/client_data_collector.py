@@ -16,9 +16,9 @@ nltk.download('omw-1.4')
 
 class CollectClientWebsiteData:
 
-    def __init__(self, url: str, page = ['home', 'solar pv', 'battery storage'] ):
+    def __init__(self, url: str, pages):
         self.url = url
-        self.page = page
+        self.page = pages
         self.title_count = 60
         self.description_count = 160
         self.HTML = None

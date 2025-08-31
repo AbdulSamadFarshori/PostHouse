@@ -7,18 +7,41 @@
   "keep_pkg_tools": true,
   "image_distro": "debian",
 
-  "dockerfile_lines": [ 
-  "RUN apt-get update && apt-get install -y wget unzip ca-certificates gnupg libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 libxcomposite1 libxrandr2 libasound2 libatk1.0-0 libgtk-3-0 libxkbcommon0 xvfb fonts-liberation xdg-utils --no-install-recommends && rm -rf /var/lib/apt/lists/*",
-  "RUN wget -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && apt install -y /tmp/google-chrome.deb && rm /tmp/google-chrome.deb",
-  "RUN set -eux; \\",
-  "    CHROME_MAJOR=\"$(google-chrome --version | sed -E 's/[^0-9]*([0-9]+).*/\\1/')\"; \\",
-  "    DRIVER_VERSION=\"$(wget -qO- https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR})\"; \\",
-  "    wget -O /tmp/chromedriver_linux64.zip \"https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip\"; \\",
-  "    unzip -q /tmp/chromedriver_linux64.zip -d /tmp/; \\",
-  "    install -m 0755 /tmp/chromedriver /usr/local/bin/chromedriver; \\",
-  "    rm -f /tmp/chromedriver_linux64.zip /tmp/chromedriver; \\",
-  "    google-chrome --version; chromedriver --version",
-  "RUN mkdir -p /workspace/driver && cp /usr/local/bin/chromedriver /workspace/driver/chromedriver && chmod +x /workspace/driver/chromedriver"
-] 
+  "dockerfile_lines": [
+    "ARG DEBIAN_FRONTEND=noninteractive",
+    "RUN apt-get update && apt-get install -y --no-install-recommends \\",
+    "    ca-certificates curl gnupg unzip wget xvfb fonts-liberation xdg-utils \\",
+    "    libglib2.0-0 libnss3 libnspr4 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 \\",
+    "    libxcursor1 libxdamage1 libxi6 libxtst6 libatk1.0-0 libatk-bridge2.0-0 \\",
+    "    libcups2 libdrm2 libxrandr2 libgbm1 libasound2 libpangocairo-1.0-0 \\",
+    "    libpango-1.0-0 libcairo2 libatspi2.0-0 libxkbcommon0 \\",
+    "  && rm -rf /var/lib/apt/lists/*",
 
+    "# Add Google's official Chrome repo",
+    "RUN install -m 0755 -d /etc/apt/keyrings \\",
+    "  && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google-linux.gpg \\",
+    "  && chmod a+r /etc/apt/keyrings/google-linux.gpg \\",
+    "  && echo \"deb [arch=amd64 signed-by=/etc/apt/keyrings/google-linux.gpg] http://dl.google.com/linux/chrome/deb/ stable main\" > /etc/apt/sources.list.d/google-chrome.list \\",
+    "  && apt-get update \\",
+    "  && apt-get install -y --no-install-recommends google-chrome-stable \\",
+    "  && rm -rf /var/lib/apt/lists/*",
+
+    "# Install matching ChromeDriver",
+    "RUN set -eux; \\",
+    "  CHROME_MAJOR=\"$(google-chrome --version | sed -E 's/.* ([0-9]+)\\..*/\\1/')\"; \\",
+    "  DRIVER_VERSION=\"$(wget -qO- https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR})\"; \\",
+    "  wget -O /tmp/chromedriver_linux64.zip \"https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip\"; \\",
+    "  unzip -q /tmp/chromedriver_linux64.zip -d /tmp/; \\",
+    "  install -m 0755 /tmp/chromedriver /usr/local/bin/chromedriver; \\",
+    "  rm -f /tmp/chromedriver_linux64.zip /tmp/chromedriver; \\",
+    "  google-chrome --version; chromedriver --version",
+
+    "# Optional: copy driver to a workspace folder used by your app",
+    "RUN mkdir -p /workspace/driver \\",
+    "  && cp /usr/local/bin/chromedriver /workspace/driver/chromedriver \\",
+    "  && chmod +x /workspace/driver/chromedriver",
+
+    "# Helpful envs for some frameworks",
+    "ENV CHROME_BIN=/usr/bin/google-chrome CHROMEDRIVER_PATH=/usr/local/bin/chromedriver"
+  ]
 }

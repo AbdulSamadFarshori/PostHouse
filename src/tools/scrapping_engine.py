@@ -1,15 +1,13 @@
-import asyncio
 import sys
-from typing import List, Optional, Dict, Any
+import asyncio
+import time
+from typing import List, Optional, Dict
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
-from langchain_core.tools import tool
-
+from playwright.sync_api import sync_playwright
 
 class ScrapingEngine:
     """
-    Async web scraping engine using Playwright + BeautifulSoup
-    for LangGraph compatibility.
+    A web scraping engine using Playwright to fetch HTML and BeautifulSoup for parsing.
     """
 
     def __init__(
@@ -17,15 +15,19 @@ class ScrapingEngine:
         headless: bool = True,
         urls: Optional[List[str]] = None,
         tag: str = "p",
-        max_retries: int = 1,
+        max_retries: int = 1,   # meaning: extra retries besides the first try
         scroll_count: int = 3,
     ):
         self.headless = headless
         self.urls = urls or []
-        self.tag = tag
+        self.tag: str = tag
         self.max_retries = max_retries
         self.scroll_count = scroll_count
+        self.page_soups: Dict[str, BeautifulSoup] = {}
+        self.cleaned_texts: Dict[str, BeautifulSoup] = {}
+        self._all_paragraph_text: List[str] = []
 
+        # Chromium launch args
         self.options: List[str] = [
             "--no-sandbox",
             "--disable-dev-shm-usage",
@@ -33,41 +35,33 @@ class ScrapingEngine:
             "--window-size=1920,1080",
         ]
 
-    async def engine(self, url: str) -> Optional[BeautifulSoup]:
-        """
-        Core scraping logic with retries.
-        """
+        self.driver = None  # kept for API compatibility
 
-        if sys.platform.startswith("win"):
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
+    async def engine(self, url: str):
 
         attempts = self.max_retries + 1
         last_exception = None
 
         for attempt in range(1, attempts + 1):
-            browser, context = None, None
+            browser = None
+            context = None
             try:
-                async with async_playwright() as pw:
-                    browser = await pw.chromium.launch(
-                        headless=self.headless, args=self.options
-                    )
-                    context = await browser.new_context(
-                        viewport={"width": 1920, "height": 1080}
-                    )
-                    page = await context.new_page()
+                with sync_playwright() as pw:
+                    browser = pw.chromium.launch(headless=self.headless, args=self.options)
+                    context = browser.new_context(viewport={"width": 1920, "height": 1080})
+                    page = context.new_page()
 
-                    await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
                     try:
-                        await page.wait_for_load_state("networkidle", timeout=5_000)
+                        page.wait_for_load_state("networkidle", timeout=5_000)
                     except Exception:
                         pass  # some sites never reach 'networkidle'
 
                     for _ in range(self.scroll_count):
-                        await page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
-                        await asyncio.sleep(0.5)
+                        page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
+                        page.wait_for_timeout(500)
 
-                    html = await page.content()
+                    html = page.content()
                     soup = BeautifulSoup(html, "html.parser")
                     print(f"[SUCCESS] Scraped: {url}")
                     return soup
@@ -77,20 +71,21 @@ class ScrapingEngine:
                 if attempt < attempts:
                     backoff = min(2 ** attempt, 8)
                     print(f"[RETRY {attempt}/{attempts-1}] {e} -> retrying in {backoff}s")
-                    await asyncio.sleep(backoff)
+                    time.sleep(backoff)
                 else:
                     print(f"[FAILED] Could not scrape: {url}. Last error: {e}")
                     return None
 
             finally:
+                # Make sure we always close resources even on failure
                 try:
                     if context:
-                        await context.close()
+                        context.close()
                 except Exception:
                     pass
                 try:
                     if browser:
-                        await browser.close()
+                        browser.close()
                 except Exception:
                     pass
 
@@ -101,9 +96,9 @@ class ScrapClientWebsite(ScrapingEngine):
         self.url = url
         self.HTML = None
 
-    async def fetch_soup_object(self):
-        self.HTML = await self.engine(self.url)
+    def fetch_soup_object(self):
+        self.HTML = self.engine(self.url)
 
-    async def invoke(self):
-        await self.fetch_soup_object()
+    def invoke(self):
+        self.fetch_soup_object()
         return self.HTML

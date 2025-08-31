@@ -18,10 +18,11 @@ nltk.download('omw-1.4')
 
 class CollectClientWebsiteData:
 
-    def __init__(self, url: str, pages: List):
+    def __init__(self, url: str, pages):
         core = ModelFactory.create('chatgpt')
         self.llm = core.model()
         self.url = url
+        self.page = pages
         self.title_count = 60
         self.description_count = 160
         self.HTML = None
@@ -47,22 +48,22 @@ class CollectClientWebsiteData:
 
         self.scraping_pages = pages
 
-    async def init_scrape(self):
+    def init_scrape(self):
         web = ScrapClientWebsite(self.url)
-        self.HTML = await web.invoke()
+        self.HTML = web.invoke()
     
     def get_navbar_links(self):
+        
         links_dict = {}
         nav = self.HTML.find("nav")
         nav_links = nav.find_all("a") if nav else []
         if nav_links:
             links_dict = {a.get_text(strip=True).lower() : a['href'] for a in nav_links if a.has_attr('href')}
-        
-        if self.url not in links_dict.values():
-            links_dict["home"] = self.url
-        self.links = [v for k, v in links_dict.items() if k in self.scraping_pages]
 
-        logging.info(f"[INFO] -- URLS {self.links}")
+        if self.url not in links_dict.values():
+            links_dict["home"] = [self.url]
+        self.links = [v for k, v in links_dict.items() if k in self.scraping_pages]
+        logging.info([f"[Links] - {self.links}"])
 
     def get_top_rank_page_link(self):
         top_page = SEOAnalysisEngine(self.url)
@@ -97,11 +98,11 @@ class CollectClientWebsiteData:
         structured_llm = self.llm.with_structured_output(UrlFilterSchema)
         res = structured_llm.invoke(final_prompt)
         self.links = res.get('urls', self.links)
-        logging.info(f"[Links]: - {self.links}")
+        print(f"[Links]: - {self.links}")
 
-    async def scrap_pages(self, url):
+    def scrap_pages(self, url):
         web = ScrapClientWebsite(url)
-        scrape_data = await web.invoke()  # ✅ await async scraper
+        scrape_data = web.invoke()
         return scrape_data
         
     def get_title(self, soup) -> str:
@@ -245,17 +246,21 @@ class CollectClientWebsiteData:
         engine = SEOAnalysisEngine(self.url)
         self.backlinks = engine.get_backlinks()
 
-    async def fetch_data(self):
-        await self.init_scrape()
+    def fetch_data(self):
+        logging.info(["[INFO] -- fetch data"])
+        self.init_scrape()
+        logging.info(["[INFO] -- init scrape"])
         self.get_navbar_links()
+        logging.info(["[INFO] -- get navbar links"])
         self.url_checkpoint()
+        logging.info(["[INFO] -- url checkpoint"])
         self.filter_urls()
-
+        logging.info(["[INFO] -- filter urls"])
+        
         all_links = self.links + self.top_rank_links
+
         for link in all_links:
-            soup = await self.scrap_pages(link)   # ✅ async call
-            if not soup:
-                continue
+            soup = self.scrap_pages(link)
             title = self.get_title(soup)
             og_tag = self.get_og_tags(soup)
             desc = self.get_description(soup)
@@ -264,7 +269,6 @@ class CollectClientWebsiteData:
             twitter_card = self.get_twitter_card(soup)
             text = self.get_text_from_html(soup)
             keywords_list = self.get_keywords(text)
-
             self.keywords.extend(keywords_list)
             self.og_tag[link] = og_tag
             self.twc[link] = twitter_card
@@ -413,15 +417,15 @@ class CollectClientWebsiteData:
         temp = f"<Document url={link} page_name={name} > {temp} </Document>"
         return temp
 
-    async def main(self):
+    def main(self):
         docs = []
-        await self.fetch_data()   # ✅ async
+        self.fetch_data()
         domain = SEOAnalysisEngine(self.url)
         self.DA = domain.get_url_metrics()
         for link in self.links:
             doc = self.generate_doc(link)
             docs.append(doc)
-        return docs, self.keywords, self.backlinks, self.DA
+        return docs, self.keywords, self.backlinks, self.DA 
         
 
 

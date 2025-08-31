@@ -1,12 +1,15 @@
-import time
-from typing import List, Optional, Dict
+import asyncio
+import sys
+from typing import List, Optional, Dict, Any
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
+from langchain_core.tools import tool
 
 
 class ScrapingEngine:
     """
-    A web scraping engine using Playwright to fetch HTML and BeautifulSoup for parsing.
+    Async web scraping engine using Playwright + BeautifulSoup
+    for LangGraph compatibility.
     """
 
     def __init__(
@@ -17,82 +20,79 @@ class ScrapingEngine:
         max_retries: int = 1,
         scroll_count: int = 3,
     ):
-        """
-        Initialize the scraping engine.
-
-        :param headless: Run browser in headless mode.
-        :param driver_path: Unused in Playwright; kept to match the Selenium signature.
-        :param urls: List of URLs to scrape.
-        :param max_retries: Number of retries on failure.
-        :param scroll_count: Number of scrolls for dynamic content.
-        """
         self.headless = headless
         self.urls = urls or []
-        self.tag: str = tag
+        self.tag = tag
         self.max_retries = max_retries
         self.scroll_count = scroll_count
-        self.page_soups: Dict[str, BeautifulSoup] = {}
-        self.cleaned_texts: Dict[str, BeautifulSoup] = {}
-        self._all_paragraph_text: List[str] = []
 
-        # Keep the same variable name; use it as Chromium launch args.
-        self.options: List[str] = []
-        self.options.append("--no-sandbox")
-        self.options.append("--disable-dev-shm-usage")
-        self.options.append("--disable-gpu")
-        self.options.append("--window-size=1920,1080")
-        if self.headless:
-            # Works with modern Chromium; Playwright also honors headless=True.
-            self.options.append("--headless=new")
+        self.options: List[str] = [
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--window-size=1920,1080",
+        ]
 
-        # Preserve the attribute name for compatibility; Playwright doesn't use WebDriver.
-        self.driver = None
+    async def engine(self, url: str) -> Optional[BeautifulSoup]:
+        """
+        Core scraping logic with retries.
+        """
 
-    def engine(self, url: str):
-        retry = 0
-        success = False
+        if sys.platform.startswith("win"):
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
+        attempts = self.max_retries + 1
         last_exception = None
 
-        while retry < self.max_retries and not success:
+        for attempt in range(1, attempts + 1):
+            browser, context = None, None
             try:
-                with sync_playwright() as pw:
-                    browser = pw.chromium.launch(headless=self.headless, args=self.options)
-                    context = browser.new_context(viewport={"width": 1920, "height": 1080})
-                    page = context.new_page()
+                async with async_playwright() as pw:
+                    browser = await pw.chromium.launch(
+                        headless=self.headless, args=self.options
+                    )
+                    context = await browser.new_context(
+                        viewport={"width": 1920, "height": 1080}
+                    )
+                    page = await context.new_page()
 
-                    page.goto(url, wait_until="domcontentloaded")
-                    # Let network settle; avoids arbitrary sleeps
+                    await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
                     try:
-                        page.wait_for_load_state("networkidle", timeout=5000)
+                        await page.wait_for_load_state("networkidle", timeout=5_000)
                     except Exception:
-                        # Some sites never reach networkidle; it's okay to continue
-                        pass
+                        pass  # some sites never reach 'networkidle'
 
                     for _ in range(self.scroll_count):
-                        page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
-                        page.wait_for_timeout(500)  # ~0.5s between scrolls
+                        await page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
+                        await asyncio.sleep(0.5)
 
-                    html = page.content()
+                    html = await page.content()
                     soup = BeautifulSoup(html, "html.parser")
                     print(f"[SUCCESS] Scraped: {url}")
-                    success = True
-
-                    # Clean close
-                    context.close()
-                    browser.close()
-
                     return soup
 
             except Exception as e:
                 last_exception = e
-                retry += 1
-                wait_time = 2 ** retry
-                print(f"[RETRY {retry}/{self.max_retries}] Error scraping {url}: {e}. Retrying in {wait_time}s...")
-                time.sleep(wait_time)
+                if attempt < attempts:
+                    backoff = min(2 ** attempt, 8)
+                    print(f"[RETRY {attempt}/{attempts-1}] {e} -> retrying in {backoff}s")
+                    await asyncio.sleep(backoff)
+                else:
+                    print(f"[FAILED] Could not scrape: {url}. Last error: {e}")
+                    return None
 
-        if not success:
-            print(f"[FAILED] Could not scrape: {url}. Last error: {last_exception}")
-        return None
+            finally:
+                try:
+                    if context:
+                        await context.close()
+                except Exception:
+                    pass
+                try:
+                    if browser:
+                        await browser.close()
+                except Exception:
+                    pass
 
 
 class ScrapClientWebsite(ScrapingEngine):
@@ -101,9 +101,9 @@ class ScrapClientWebsite(ScrapingEngine):
         self.url = url
         self.HTML = None
 
-    def fetch_soup_object(self):
-        self.HTML = self.engine(self.url)
+    async def fetch_soup_object(self):
+        self.HTML = await self.engine(self.url)
 
-    def invoke(self):
-        self.fetch_soup_object()
+    async def invoke(self):
+        await self.fetch_soup_object()
         return self.HTML

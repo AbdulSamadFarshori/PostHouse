@@ -62,8 +62,9 @@ class CollectClientWebsiteData:
 
         if self.url not in links_dict.values():
             links_dict["home"] = [self.url]
+        logging.info(f"[Link Hash] - {links_dict}")
         self.links = [v for k, v in links_dict.items() if k in self.scraping_pages]
-        logging.info([f"[Links] - {self.links}"])
+        logging.info(f"[Links] - {self.links}")
 
     def get_top_rank_page_link(self):
         top_page = SEOAnalysisEngine(self.url)
@@ -91,14 +92,14 @@ class CollectClientWebsiteData:
     #     json_output = json.loads(content)
     #     return json_output
 
-    def filter_urls(self):
-        prompt = url_filter_prompt()
-        system_prompt = prompt.format(urls=self.links)
-        final_prompt = [SystemMessage(content=system_prompt)] + [HumanMessage(content="please find the useful urls")]
-        structured_llm = self.llm.with_structured_output(UrlFilterSchema)
-        res = structured_llm.invoke(final_prompt)
-        self.links = res.get('urls', self.links)
-        print(f"[Links]: - {self.links}")
+    # def filter_urls(self):
+    #     prompt = url_filter_prompt()
+    #     system_prompt = prompt.format(urls=self.links)
+    #     final_prompt = [SystemMessage(content=system_prompt)] + [HumanMessage(content="please find the useful urls")]
+    #     structured_llm = self.llm.with_structured_output(UrlFilterSchema)
+    #     res = structured_llm.invoke(final_prompt)
+    #     self.links = res.get('urls', self.links)
+    #     print(f"[Links]: - {self.links}")
 
     def scrap_pages(self, url):
         web = ScrapClientWebsite(url)
@@ -254,8 +255,8 @@ class CollectClientWebsiteData:
         logging.info(["[INFO] -- get navbar links"])
         self.url_checkpoint()
         logging.info(["[INFO] -- url checkpoint"])
-        self.filter_urls()
-        logging.info(["[INFO] -- filter urls"])
+        # self.filter_urls()
+        # logging.info(["[INFO] -- filter urls"])
         
         all_links = self.links + self.top_rank_links
 

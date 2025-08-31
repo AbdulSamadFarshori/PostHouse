@@ -5,11 +5,11 @@ from src.utilies.client_data_collector import CollectClientWebsiteData
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 
-async def client_website_data(state: SEOCompetitiveAnalystSchema):
+def client_website_data(state: SEOCompetitiveAnalystSchema):
     url = state["client_url"]
     pages = state["pages"]
     collecter = CollectClientWebsiteData(url, pages)
-    docs, keywords, backlinks, da = await collecter.main()
+    docs, keywords, backlinks, da = collecter.main()
     return {"client_website_data": docs, "client_keywords": keywords, "client_backlinks": backlinks, 'client_DA': da}
 
 def on_page_seo_audit_report(state: SEOCompetitiveAnalystSchema):

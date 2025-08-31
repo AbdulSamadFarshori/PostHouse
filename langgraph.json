@@ -8,8 +8,17 @@
   "image_distro": "debian",
 
   "dockerfile_lines": [ 
-        "RUN python -m pip install --no-cache-dir playwright==1.55.0",
-        "RUN python -m playwright install --with-deps"
-  ]
+  "RUN apt-get update && apt-get install -y wget unzip ca-certificates gnupg libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 libxcomposite1 libxrandr2 libasound2 libatk1.0-0 libgtk-3-0 libxkbcommon0 xvfb fonts-liberation xdg-utils --no-install-recommends && rm -rf /var/lib/apt/lists/*",
+  "RUN wget -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && apt install -y /tmp/google-chrome.deb && rm /tmp/google-chrome.deb",
+  "RUN set -eux; \\",
+  "    CHROME_MAJOR=\"$(google-chrome --version | sed -E 's/[^0-9]*([0-9]+).*/\\1/')\"; \\",
+  "    DRIVER_VERSION=\"$(wget -qO- https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR})\"; \\",
+  "    wget -O /tmp/chromedriver_linux64.zip \"https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip\"; \\",
+  "    unzip -q /tmp/chromedriver_linux64.zip -d /tmp/; \\",
+  "    install -m 0755 /tmp/chromedriver /usr/local/bin/chromedriver; \\",
+  "    rm -f /tmp/chromedriver_linux64.zip /tmp/chromedriver; \\",
+  "    google-chrome --version; chromedriver --version",
+  "RUN mkdir -p /workspace/driver && cp /usr/local/bin/chromedriver /workspace/driver/chromedriver && chmod +x /workspace/driver/chromedriver"
+] 
 
 }

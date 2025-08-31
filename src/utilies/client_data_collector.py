@@ -57,8 +57,9 @@ class CollectClientWebsiteData:
         nav_links = nav.find_all("a") if nav else []
         if nav_links:
             links_dict = {a.get_text(strip=True).lower() : a['href'] for a in nav_links if a.has_attr('href')}
-        else:
-            links_dict["home"] = [self.url]
+        
+        if self.url not in links_dict.values():
+            links_dict["home"] = self.url
         self.links = [v for k, v in links_dict.items() if k in self.scraping_pages]
 
     def get_top_rank_page_link(self):

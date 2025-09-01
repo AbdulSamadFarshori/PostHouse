@@ -61,7 +61,7 @@ class CollectClientWebsiteData:
             links_dict = {a.get_text(strip=True).lower() : a['href'] for a in nav_links if a.has_attr('href')}
 
         if self.url not in links_dict.values():
-            links_dict["home"] = [self.url]
+            links_dict["home"] = self.url
         logging.info(f"[Link Hash] - {links_dict}")
         self.links = [v for k, v in links_dict.items() if k in self.scraping_pages]
         logging.info(f"[Links] - {self.links}")

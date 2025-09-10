@@ -34,6 +34,7 @@ class FindTrueCompetitors:
         self.r_urls = []
         self.client_keywords = client_keywords
         self.relavent_client_keywords_list = []
+        self.total_hits = 0
 
     def find_doc(self):
         target_url = f"<Document url={self.url} page_name=Home >"
@@ -131,15 +132,18 @@ class FindTrueCompetitors:
         self.bw_url = temp
 
     def calculate_moz_score(self):
+        total_hit_in_this_method = 0
         MOZ_URL_SCORE = []
         for url in self.r_urls:
             temp = {}
             moz_obj = SEOAnalysisEngine(url)
             # BA = moz_obj.get_ba_metrics()
-            DA = moz_obj.get_url_metrics()
+            DA, hit = moz_obj.get_url_metrics()
             temp['url'] = url
             temp['domain_authority'] = DA
             MOZ_URL_SCORE.append(temp)
+            total_hit_in_this_method += hit
+        self.total_hits = total_hit_in_this_method
         SORTED_MOZ_URL_SCORE = sorted(MOZ_URL_SCORE, key=lambda x: x['domain_authority'], reverse=True)
         self.url_with_moz_score = SORTED_MOZ_URL_SCORE
         print(f"---------Moz scores--------{self.url_with_moz_score}")
@@ -167,7 +171,7 @@ class FindTrueCompetitors:
         self.calculate_moz_score()
         self.report_in_text_form()
         self.relavent_client_keywords()
-        return self.industry, self.report, self.url_with_moz_score, self.relavent_client_keywords_list
+        return self.industry, self.report, self.url_with_moz_score, self.relavent_client_keywords_list, self.total_hits
 
 
 

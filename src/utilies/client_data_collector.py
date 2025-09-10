@@ -4,7 +4,7 @@ import re
 import pandas as pd
 from typing_extensions import List, Dict, Annotated, Union 
 from src.tools.scrapping_engine import ScrapClientWebsite
-from src.tools.seo_engines import SEOAnalysisEngine
+from src.tools.seo_engines import SEOAnalysisEngine, WebsiteKeywordsList
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from src.utilies.prompts import url_filter_prompt
 from nltk.corpus import stopwords
@@ -45,6 +45,8 @@ class CollectClientWebsiteData:
         self.schema = []        
         self.backlinks = []
         self.DA = None
+        self.top_organic_keywords_with_scores = []
+        self.total_hit = 0
 
         self.scraping_pages = pages
 
@@ -68,8 +70,9 @@ class CollectClientWebsiteData:
 
     def get_top_rank_page_link(self):
         top_page = SEOAnalysisEngine(self.url)
-        top_pages_link = top_page.get_top_page()
+        top_pages_link, hit = top_page.get_top_page()
         self.top_rank_links.extend(top_pages_link)
+        self.total_hit += hit
         print(f"[top-page-link] : - {self.top_rank_links}")
     
     def url_checkpoint(self):
@@ -179,7 +182,17 @@ class CollectClientWebsiteData:
     #         words.append(word)
     #         k = idx
     #     return words
-        
+
+    def website_moz_organic_keywords(self):
+        root_url = self.url
+        keywords_extractor = WebsiteKeywordsList(scope="domain")
+        data = keywords_extractor.get_keywords(root_url)
+        result = data.get("result", {})
+        organic_website_keywords = result.get("ranking_keywords", [])
+        for keywords_dic in organic_website_keywords:
+            del keywords_dic["ranking_page"]
+        self.top_organic_keywords_with_scores = keywords_dic
+ 
     def keywords_count(self, arr):
         data = {"ngrm":arr}
         df = pd.DataFrame(data)
@@ -245,7 +258,18 @@ class CollectClientWebsiteData:
     
     def get_client_backlinks(self):
         engine = SEOAnalysisEngine(self.url)
-        self.backlinks = engine.get_backlinks()
+        self.backlinks, hit = engine.get_backlinks()
+        self.total_hit += hit
+
+    def merge_keywords_arr(self):
+        for keyword in self.top_organic_keywords_with_scores:
+            sent = keyword.get('keyword', "")
+            tokens = sent.split(" ")
+            for token in tokens:
+                if token not in self.top_keywords:
+                    self.top_keywords.append(token)
+
+
 
     def fetch_data(self):
         logging.info(["[INFO] -- fetch data"])
@@ -257,6 +281,8 @@ class CollectClientWebsiteData:
         logging.info(["[INFO] -- url checkpoint"])
         # self.filter_urls()
         # logging.info(["[INFO] -- filter urls"])
+        self.website_moz_organic_keywords()
+
         
         all_links = self.links + self.top_rank_links
 
@@ -284,8 +310,8 @@ class CollectClientWebsiteData:
             self.viewport = self.get_viewport()
 
         self.website_top_keywords()
+        self.merge_keywords_arr()
         self.get_client_backlinks()
-
 
     def is_og_tags_present(self):
         temp = {}
@@ -359,6 +385,18 @@ class CollectClientWebsiteData:
             name = root_removed.replace('/', '')
             print(name)
         return name
+    
+    @staticmethod
+    def dict_to_str(arr_dict):
+        arr = [] 
+        for item in arr_dict:
+            temp = ""
+            for k, v in item.items():
+                temp += f"{k} - {v} \n"
+            arr.append(temp)
+        final_str = ", ".join(arr)
+        return final_str
+    
 
     def generate_doc(self, link):
         temp = ""
@@ -408,9 +446,10 @@ class CollectClientWebsiteData:
         else:
             temp += f"Description Observation : Description characters are {self.desc_char.get(link, 0)} which is less than 150 characters or more than 160 characters which is not suitable for seo. \n "
         keywords = self.top_keywords if len(self.links) > 1 else self.keywords
+        
         temp += f"H1 Tags: {self.h1_tags} \n "
         temp += f"H2 Tags: {self.h2_tags} \n "
-        temp += f"Top keywords Observation : {", ".join(keywords)} \n "
+        temp += f"Organic keywords with scores Observation : {self.dict_to_str(self.top_organic_keywords_with_scores)} \n "
         temp += f"<title> {self.title.get(link, None)} </title> \n "
         temp += f"<description> {self.desc.get(link, None)} </description> \n "
         temp += f"<content> {self.text.get(link, "")} </content> \n "
@@ -422,11 +461,12 @@ class CollectClientWebsiteData:
         docs = []
         self.fetch_data()
         domain = SEOAnalysisEngine(self.url)
-        self.DA = domain.get_url_metrics()
+        self.DA, hit = domain.get_url_metrics()
+        self.total_hit += hit
         for link in self.links:
             doc = self.generate_doc(link)
             docs.append(doc)
-        return docs, self.keywords, self.backlinks, self.DA 
+        return docs, self.keywords, self.top_organic_keywords_with_scores, self.backlinks, self.DA , self.total_hit
         
 
 

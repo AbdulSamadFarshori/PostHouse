@@ -4,18 +4,19 @@ from src.scehma.agent import ReportSchema
 from src.utilies.prompts import generate_remaining_report_prompt
 
 class GenerateFinalReport:
-    def __init__(self, on_page, keyword_gap, backlink_gap, true_competitors):
+    def __init__(self, on_page, keyword_gap, backlink_gap, true_competitors, organic_keywords):
         
         self.on_page_report = on_page
         self.keyword_gap = keyword_gap
         self.competitors = true_competitors
         self.backlink_gap = backlink_gap
+        self.organic_keywords = organic_keywords
         core = ModelFactory.create('chatgpt')
         self.llm = core.model()
 
     def generate_remaining_report(self):
         structured_llm = self.llm.with_structured_output(ReportSchema)
-        system_prompt = generate_remaining_report_prompt().format(keywords=self.keyword_gap, backlinks=self.backlink_gap, competitors=self.competitors)
+        system_prompt = generate_remaining_report_prompt().format(keywords=self.keyword_gap, organic_keywords_suggestion=self.organic_keywords,backlinks=self.backlink_gap, competitors=self.competitors)
         final_prompt = [SystemMessage(content=system_prompt)] + [HumanMessage(content="generate the report.")]
         res = structured_llm.invoke(final_prompt)
         report = res.get("report", "")

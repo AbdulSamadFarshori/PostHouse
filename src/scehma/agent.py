@@ -23,6 +23,8 @@ class SEOCompetitiveAnalystSchema(TypedDict):
     keyword_metrice_list: List
     keyword_metrice_report: str
     final_report: str
+    top_client_organic_keywords: List[Dict] 
+    suggested_organic_keywords: List[Dict]
     
 
 class IndustryClassification(TypedDict):

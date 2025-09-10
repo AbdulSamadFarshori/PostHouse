@@ -160,7 +160,6 @@ class KeywordMetrice:
         
     def _metrice(self, data):
         response = requests.post("https://api.moz.com/jsonrpc", headers=self.headers, data=json.dumps(data))
-        print(response.json())
         return response.json()
     
     def metrice(self, keyword):
@@ -182,4 +181,76 @@ class KeywordMetrice:
         response = self._metrice(data)
         return response
     
+
+class WebsiteKeywordsList:
+    
+    def __init__(self, scope):
+        self.scope = scope
+        self.api_token = MOZ_API_KEY 
+        self.headers = {
+            "x-moz-token": self.api_token,
+            "Content-Type": "application/json",
+        }
+
+    def _get_keywords(self, data):
+        response = requests.post("https://api.moz.com/jsonrpc", headers=self.headers, data=json.dumps(data))
+        return response.json()
+    
+    def get_keywords(self, url):
+        data = {
+                "jsonrpc": "2.0",
+                "id": "e7c90221-5f39-42cf-9234-23b6b3065cbe",
+                "method": "data.site.ranking-keyword.list",
+                "params": {
+                    "data": {
+                        "target_query": {
+                            "query": url,
+                            "scope": self.scope,
+                            "locale": "en-US"
+                        },
+                    "page":
+                        {"n":0,"limit":50},
+                    }
+                }
+            }
+        res = self._get_keywords(data)
+        return res
+
+class KeywordsSuggestion:
+
+    def __init__(self):
+        self.api_token = MOZ_API_KEY 
+        self.headers = {
+            "x-moz-token": self.api_token,
+            "Content-Type": "application/json",
+        }
+
+    def _get_keywords(self, data):
+        response = requests.post("https://api.moz.com/jsonrpc", headers=self.headers, data=json.dumps(data))
+        return response.json()
+    
+    def get_keywords(self, keywords):
+        data = {
+                "jsonrpc": "2.0",
+                "id": "0b661f85-d2a6-49b3-95bd-6ed598ebb501",
+                "method": "data.keyword.suggestions.list",
+                "params": {
+                    "data": {
+                        "serp_query": {
+                            "keyword": keywords,
+                            "locale": "en-US",
+                            "device": "desktop",
+                            "engine": "google"
+                        },
+                    "page":
+                        {
+                            "n":0,
+                            "limit":10
+                        },
+                    }
+                }
+            }
+        res = self._get_keywords(data)
+        return res
+
 

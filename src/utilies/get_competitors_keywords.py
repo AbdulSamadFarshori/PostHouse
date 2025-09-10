@@ -4,7 +4,9 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from src.tools.scrapping_engine import ScrapClientWebsite
 from src.utilies.similar_keywords import SimilarKeywords
-from src.tools.seo_engines import SEOAnalysisEngine
+from src.tools.seo_engines import SEOAnalysisEngine, WebsiteKeywordsList 
+
+
 class CounterDict:
     def __init__(self):
         self.dict = dict()
@@ -27,7 +29,7 @@ class CounterDict:
 
 class CompetitorsAnalysis:
 
-    def __init__(self, true_competitors, client_DA, client_keywords, industry, client_backlinks):
+    def __init__(self, true_competitors, client_DA, client_keywords, client_organic_keywords, industry, client_backlinks, business_type):
         self.true_competitors = true_competitors
         self.client_DA = client_DA
         self.client_keywords = client_keywords
@@ -40,6 +42,10 @@ class CompetitorsAnalysis:
         self.backlinks = []
         self.keywords_gap = []
         self.backlinks_gap = []
+        self.business_type = business_type
+        self.organic_keywords = []
+        self.client_organic_keywords = client_organic_keywords
+        self.total_hits = 0
 
     def qualified_links(self):
         temp = []
@@ -59,7 +65,6 @@ class CompetitorsAnalysis:
         page_tuple = sk.similar_keywords()
         final_page = [links[i[0]] for i in page_tuple]
         return final_page
-
     
     def get_nav_anchor_tags(self, soup, url):
         links_dict = {}
@@ -85,6 +90,18 @@ class CompetitorsAnalysis:
         words = text.split()
         cleaned_words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
         return ' '.join(cleaned_words)
+
+    def url_checkpoint(self, url, nav_links):
+        root = url
+        if root.endswith('/'):
+            root = root[0:len(root)-1]
+        for idx, link in enumerate(nav_links):
+            if link.startswith("https://"):
+                pass
+            else:
+                full_url = f"{root}{link}"
+                nav_links[idx] = full_url
+        return nav_links
     
     def get_text_from_html(self, soup) -> str:
         all_text = list()
@@ -120,10 +137,21 @@ class CompetitorsAnalysis:
             temp.extend(foo)
         self.competitors_keywords = temp
 
+    def get_organic_keywords(self, url):
+        keywords_extractor = WebsiteKeywordsList(scope="url")
+        data, hits = keywords_extractor.get_keywords(url)
+        self.total_hits += hits
+        result = data.get("result", {})
+        organic_website_keywords = result.get("ranking_keywords", [])
+        for keywords_dic in organic_website_keywords:
+            del keywords_dic["ranking_page"]
+        return keywords_dic 
+
     def get_backlinks(self, url):
         engine = SEOAnalysisEngine(url)
-        bl = engine.get_backlinks()
+        bl, hits = engine.get_backlinks()
         self.backlinks.append(bl)
+        self.total_hits += hits
     
     def main(self):
         self.qualified_links()
@@ -132,16 +160,18 @@ class CompetitorsAnalysis:
             soup = self.scrap_pages(url)
             if soup:
                 nav_links = self.get_nav_anchor_tags(soup, url)
-                print(nav_links)
+                nav_links = self.url_checkpoint(url, nav_links)
                 for a_tags in nav_links:
+                    competitor_organic_keywords = self.get_organic_keywords(a_tags)
+                    self.organic_keywords.extend(competitor_organic_keywords)
                     soup_2 = self.scrap_pages(a_tags)
                     if soup_2:
                         text = self.get_text_from_html(soup_2)
                         self.keywords_count(text)
         self.counter.filter_values()
         self.counter.sortValue()
-        print(self.counter.dict)
         self.find_relavent_keywords()
+        organic_keywords_suggestion = [ok for ok in self.organic_keywords if ok not in self.client_organic_keywords]
         self.keywords_gap = [ k for k in self.competitors_keywords if k not in self.client_keywords]
         
         if self.backlinks:
@@ -149,7 +179,7 @@ class CompetitorsAnalysis:
                 temp_back = [b for b in ele if b not in self.client_backlinks]
                 self.backlinks_gap.extend(temp_back)
 
-        return self.keywords_gap, self.backlinks_gap
+        return self.keywords_gap, self.backlinks_gap, organic_keywords_suggestion, self.total_hits
 
 
 

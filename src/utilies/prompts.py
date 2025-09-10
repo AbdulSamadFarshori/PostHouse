@@ -165,12 +165,14 @@ def url_filter_prompt():
     return prompts 
 
 def generate_remaining_report_prompt():
-    prompt = """your task is to write a small summary/paragraph regarding keywords gap and backlinks gap and true competitors. you are provided with keywords list 
-    which are missing in client website and backlings which missing and competitors list with domain authority scord. you need to show given data in proper tabular form
+    prompt = """your task is to write a small summary/paragraph regarding true competitors, organic keywords research, keywords gap and backlinks gap. you are provided with keywords list 
+    which are missing in client website and backlings which missing and competitors list with domain authority score and organic keywords which are used by competitors. you need to show given data in proper tabular form
     
+    Organic Keywords Research List : {organic_keywords}
     Keywords Gap List : {keywords}
     Backlinks Gap List : {backlinks}
     True Competitors List : {competitors}
+    
 
 
     instruction:

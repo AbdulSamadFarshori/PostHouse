@@ -7,5 +7,5 @@ def find_true_competitors(state: SEOCompetitiveAnalystSchema):
     docs = state['client_website_data']
     client_keywords = state['client_keywords']
     comp = FindTrueCompetitors(docs=docs, location=loc, root_url=url, client_keywords=client_keywords)
-    industry, report, arr, client_keywords = comp.main()
-    return {'industry': industry, 'true_competitors': report, 'competitors_list': arr, 'client_keywords':client_keywords}
+    industry, report, arr, client_keywords, total_hit = comp.main()
+    return {'industry': industry, 'true_competitors': report, 'competitors_list': arr, 'client_keywords':client_keywords, 'moz_api_hits':total_hit}

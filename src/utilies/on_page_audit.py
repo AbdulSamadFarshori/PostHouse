@@ -9,8 +9,16 @@ def client_website_data(state: SEOCompetitiveAnalystSchema):
     url = state["client_url"]
     pages = state["pages"]
     collecter = CollectClientWebsiteData(url, pages)
-    docs, keywords, backlinks, da = collecter.main()
-    return {"client_website_data": docs, "client_keywords": keywords, "client_backlinks": backlinks, 'client_DA': da}
+    docs, keywords, organic_keywords, backlinks, da, hits = collecter.main()
+    return {
+            "client_website_data": docs, 
+            "client_keywords": keywords, 
+            "top_client_organic_keywords": organic_keywords, 
+            "client_backlinks": backlinks, 
+            "client_DA": da,
+            "moz_api_hits": hits 
+
+            }
 
 def on_page_seo_audit_report(state: SEOCompetitiveAnalystSchema):
     data = state["client_website_data"]
